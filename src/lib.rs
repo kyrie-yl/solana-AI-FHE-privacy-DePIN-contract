@@ -64,7 +64,7 @@ fn process_instruction(
 
 fn calculate_sol_amount(usd_qty: u64, price: Price) -> u64 {
     let fee_lamports = (10u64)
-        .checked_pow((10 - price.expo) as u32).unwrap()
+        .checked_pow((9 - price.expo) as u32).unwrap()
         .checked_mul(usd_qty).unwrap()
         .checked_div(price.price as u64).unwrap();
     return  fee_lamports as u64
