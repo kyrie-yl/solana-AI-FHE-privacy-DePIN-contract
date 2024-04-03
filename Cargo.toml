@@ -10,3 +10,4 @@ crate-type = ["cdylib", "lib"]
 
 [dependencies]
 solana-program = "1.18.1"
+pyth-sdk-solana = "0.10.1"

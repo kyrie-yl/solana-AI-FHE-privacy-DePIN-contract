@@ -1,3 +1,5 @@
+use std::time;
+use std::time::SystemTime;
 use solana_program::{
     account_info::next_account_info,
     account_info::AccountInfo,
@@ -8,6 +10,9 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use solana_program::program::invoke;
+use pyth_sdk_solana::state::{SolanaPriceAccount, Price, PriceFeed};
+
+const STALENESS_THRESHOLD : u64 = 60; // staleness threshold in seconds
 
 // Define the program entrypoint function
 entrypoint!(process_instruction);
@@ -22,12 +27,19 @@ fn process_instruction(
     let accounts_iter = &mut accounts.iter();
     let from_account = next_account_info(accounts_iter)?;
     let to_account = next_account_info(accounts_iter)?;
+    let pyth_sol_usd_account = next_account_info(accounts_iter)?;
+
+    let price_feed: PriceFeed = SolanaPriceAccount::account_info_to_feed(pyth_sol_usd_account).unwrap();
+    let current_timestamp = SystemTime::now().duration_since(time::UNIX_EPOCH).unwrap().as_secs() as i64;
+    let current_price: Price = price_feed.get_price_no_older_than(current_timestamp, STALENESS_THRESHOLD).unwrap();
 
     // Parse the instruction data to get the amount of SOL to withdraw
-    let amount_to_withdraw = instruction_data.get(0..8)
+    let amount_usd = instruction_data.get(0..8)
         .and_then(|slice| slice.try_into().ok())
         .map(u64::from_le_bytes)
         .ok_or(ProgramError::InvalidInstructionData)?;
+
+    let amount_to_withdraw = calculate_sol_amount(amount_usd, current_price);
 
     // Check if the caller has sufficient balance to withdraw the specified amount
     if from_account.lamports() < amount_to_withdraw {
@@ -47,4 +59,12 @@ fn process_instruction(
     msg!("{} SOL withdrawn from caller's account", amount_to_withdraw);
 
     Ok(())
+}
+
+fn calculate_sol_amount(usd_qty: u64, price: Price) -> u64 {
+    let fee_lamports = (10u64)
+        .checked_pow((10 - price.expo) as u32).unwrap()
+        .checked_mul(usd_qty).unwrap()
+        .checked_div(price.price as u64).unwrap();
+    return  fee_lamports as u64
 }
