@@ -33,12 +33,13 @@ fn process_instruction(
     let current_timestamp = Clock::get()?.unix_timestamp;
     let current_price: Price = price_feed.get_price_no_older_than(current_timestamp, STALENESS_THRESHOLD).unwrap();
 
-    // Parse the instruction data to get the amount of SOL to withdraw
+    // Parse the instruction data to get the amount of USD to pay
     let amount_usd = instruction_data.get(0..8)
         .and_then(|slice| slice.try_into().ok())
         .map(u64::from_le_bytes)
         .ok_or(ProgramError::InvalidInstructionData)?;
 
+    // calculate the amount of sol to withdraw
     let amount_to_withdraw = calculate_sol_amount(amount_usd, current_price);
 
     // Check if the caller has sufficient balance to withdraw the specified amount
