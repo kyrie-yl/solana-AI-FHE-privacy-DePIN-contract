@@ -1,5 +1,3 @@
-use std::time;
-use std::time::SystemTime;
 use solana_program::{
     account_info::next_account_info,
     account_info::AccountInfo,
@@ -10,6 +8,8 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use solana_program::program::invoke;
+use solana_program::sysvar::clock::Clock;
+use solana_program::sysvar::Sysvar;
 use pyth_sdk_solana::state::{SolanaPriceAccount, Price, PriceFeed};
 
 const STALENESS_THRESHOLD : u64 = 60; // staleness threshold in seconds
@@ -30,7 +30,7 @@ fn process_instruction(
     let pyth_sol_usd_account = next_account_info(accounts_iter)?;
 
     let price_feed: PriceFeed = SolanaPriceAccount::account_info_to_feed(pyth_sol_usd_account).unwrap();
-    let current_timestamp = SystemTime::now().duration_since(time::UNIX_EPOCH).unwrap().as_secs() as i64;
+    let current_timestamp = Clock::get()?.unix_timestamp;
     let current_price: Price = price_feed.get_price_no_older_than(current_timestamp, STALENESS_THRESHOLD).unwrap();
 
     // Parse the instruction data to get the amount of SOL to withdraw
